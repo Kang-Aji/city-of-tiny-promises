@@ -1,0 +1,29 @@
+{
+  "name": "city-of-tiny-promises",
+  "version": "1.0.0",
+  "description": "An idle/management clicker game about civic responsibility and community building. Choose between NYC and San Francisco difficulty levels, fulfill citizen requests, and watch your community transform based on your choices.",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "game",
+    "idle",
+    "clicker",
+    "management",
+    "civic-responsibility",
+    "community",
+    "html5",
+    "javascript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/city-of-tiny-promises"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
