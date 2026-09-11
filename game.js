@@ -13,6 +13,14 @@ class AudioManager {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
     }
+
+    // Browsers start an AudioContext created outside a user gesture in the
+    // 'suspended' state. Without this every sound was silently dropped.
+    resume() {
+        if (this.audioContext && this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+    }
     
     playSound(frequency, duration, type = 'sine', volume = 1) {
         if (this.isMuted || !this.audioContext) return;
@@ -88,6 +96,7 @@ class AudioManager {
             this.backgroundOscillator.stop();
             this.backgroundOscillator = null;
         }
+        this.backgroundGain = null;
     }
     
     setVolume(value) {
@@ -107,6 +116,19 @@ class AudioManager {
         return this.isMuted;
     }
 }
+
+const ROUND_SECONDS = 60;
+
+// Must match .citizen-card in styles.css.
+const CARD_W = 88;
+const CARD_H = 100;
+// The request bubble is absolutely positioned 40px above the card; reserve room
+// for it so it is not clipped off the top of the street.
+const BUBBLE_SPACE = 44;
+// Matches #streetContainer's padding.
+const STREET_PADDING = 10;
+// Breathing room between two cards before they read as overlapping.
+const MIN_GAP = 8;
 
 class CityOfTinyPromises {
     constructor() {
@@ -142,12 +164,20 @@ class CityOfTinyPromises {
         this.citizenNames = ['Alex', 'Jordan', 'Casey', 'Morgan', 'Riley', 'Taylor', 'Sam', 'Quinn', 'Drew', 'Blake', 'Avery', 'Skylar'];
         this.citizenEmojis = ['👨', '👩', '🧑', '👱', '👨‍🦱', '👩‍🦱', '🧔', '👱‍♀️', '👨‍🦲', '👩‍🦲', '🧑‍🦰', '👨‍🦳'];
         
-        this.setupDifficultySelection();
+        // Handle for the round timer so it can be cleared. Leaving it unset was
+        // what let intervals stack up across replays.
+        this.loopId = null;
+
+        this.bindControls();
     }
-    
-    setupDifficultySelection() {
+
+    // Bound exactly once, at construction. These elements live for the lifetime
+    // of the page, so re-binding them per round only ever duplicated handlers.
+    bindControls() {
         document.getElementById('nycBtn').addEventListener('click', () => this.startGame('nyc'));
         document.getElementById('sfBtn').addEventListener('click', () => this.startGame('sf'));
+        document.getElementById('restartBtn').addEventListener('click', () => this.restartGame());
+        this.setupSoundControls();
     }
     
     startGame(difficulty) {
@@ -163,7 +193,8 @@ class CityOfTinyPromises {
             document.getElementById('sf-skyline').classList.add('hidden');
         }
         
-        this.setupSoundControls();
+        // First real user gesture of the session - safe to unlock audio here.
+        this.audioManager.resume();
         this.init();
     }
     
@@ -189,21 +220,18 @@ class CityOfTinyPromises {
     }
     
     init() {
-        this.setupEventListeners();
         this.updateUI();
         this.audioManager.startBackgroundMusic(this.difficulty);
         this.startGameLoop();
         this.spawnCitizen();
     }
     
-    setupEventListeners() {
-        document.getElementById('restartBtn').addEventListener('click', () => this.restartGame());
-    }
-    
     startGameLoop() {
-        setInterval(() => {
+        this.stopGameLoop();
+        this.loopId = setInterval(() => {
             if (!this.isGameOver) {
                 this.gameTime++;
+                this.updateUI();
                 this.updateRequests();
                 this.checkGameEnd();
                 
@@ -212,6 +240,13 @@ class CityOfTinyPromises {
                 }
             }
         }, 1000);
+    }
+    
+    stopGameLoop() {
+        if (this.loopId !== null) {
+            clearInterval(this.loopId);
+            this.loopId = null;
+        }
     }
     
     spawnCitizen() {
@@ -236,10 +271,12 @@ class CityOfTinyPromises {
             'high': 8
         };
         
+        const position = this.pickSpawnPosition();
+        
         const citizen = {
             id: Date.now() + Math.random(),
-            x: Math.random() * 80 + 10,
-            y: Math.random() * 60 + 20,
+            x: position.x,
+            y: position.y,
             name: name,
             emoji: emoji,
             request: requestType,
@@ -255,13 +292,52 @@ class CityOfTinyPromises {
         this.updateRequestQueue();
     }
     
+    // Picks a pixel position inside the street that fits a whole card and, where
+    // possible, does not overlap an existing one. Rejection sampling with a
+    // best-effort fallback: a crowded street should still place the citizen
+    // rather than drop it.
+    pickSpawnPosition() {
+        const rect = document.getElementById('streetContainer').getBoundingClientRect();
+        const maxX = Math.max(0, rect.width - CARD_W - STREET_PADDING * 2);
+        const maxY = Math.max(0, rect.height - CARD_H - STREET_PADDING - BUBBLE_SPACE);
+        
+        let fallback = null;
+        let fallbackClearance = -Infinity;
+        
+        for (let attempt = 0; attempt < 30; attempt++) {
+            const candidate = {
+                x: STREET_PADDING + Math.random() * maxX,
+                y: STREET_PADDING + BUBBLE_SPACE + Math.random() * maxY
+            };
+            const clearance = this.clearanceAt(candidate);
+            
+            if (clearance >= MIN_GAP) return candidate;
+            if (clearance > fallbackClearance) {
+                fallbackClearance = clearance;
+                fallback = candidate;
+            }
+        }
+        
+        return fallback;
+    }
+    
+    // Distance to the nearest existing card along whichever axis separates them
+    // most. Negative means the boxes overlap.
+    clearanceAt(candidate) {
+        return this.citizens.reduce((closest, citizen) => {
+            const gapX = Math.abs(citizen.x - candidate.x) - CARD_W;
+            const gapY = Math.abs(citizen.y - candidate.y) - CARD_H;
+            return Math.min(closest, Math.max(gapX, gapY));
+        }, Infinity);
+    }
+    
     renderCitizen(citizen) {
         const streetContainer = document.getElementById('streetContainer');
         const citizenCard = document.createElement('div');
         citizenCard.className = 'citizen-card';
         citizenCard.id = `citizen-${citizen.id}`;
-        citizenCard.style.left = `${citizen.x}%`;
-        citizenCard.style.top = `${citizen.y}%`;
+        citizenCard.style.left = `${citizen.x}px`;
+        citizenCard.style.top = `${citizen.y}px`;
         citizenCard.style.backgroundColor = citizen.request.color;
         citizenCard.style.opacity = '0.9';
         
@@ -414,33 +490,51 @@ class CityOfTinyPromises {
         }
     }
     
+    // Reconciles the queue against this.activeRequests instead of clearing and
+    // rebuilding it. The old version wiped innerHTML every tick, which restarted
+    // the slideIn animation on every row once a second and rebuilt the whole
+    // subtree for what is usually a one-character change.
     updateRequestQueue() {
         const queueContainer = document.getElementById('activeRequests');
-        queueContainer.innerHTML = '';
+        const live = new Set();
         
         this.activeRequests.forEach(citizen => {
-            const requestItem = document.createElement('div');
-            requestItem.className = 'request-item';
-            requestItem.style.backgroundColor = citizen.request.color;
-            if (citizen.timeLeft <= 3) {
-                requestItem.classList.add('urgent');
+            const rowId = `request-${citizen.id}`;
+            live.add(rowId);
+            
+            let row = document.getElementById(rowId);
+            if (!row) {
+                row = this.createRequestRow(citizen, rowId);
+                queueContainer.appendChild(row);
             }
             
-            const progressPercent = (citizen.timeLeft / citizen.maxTime) * 100;
-            
-            requestItem.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <span><strong>${citizen.name}</strong></span>
-                    <span style="font-weight: bold;">${citizen.timeLeft}s</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 5px;">${citizen.request.icon} ${citizen.request.type}</div>
-                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden;">
-                    <div style="height: 100%; background: rgba(255,255,255,0.8); width: ${progressPercent}%; transition: width 0.3s ease;"></div>
-                </div>
-            `;
-            
-            queueContainer.appendChild(requestItem);
+            row.classList.toggle('urgent', citizen.timeLeft <= 3);
+            row.querySelector('.request-item-time').textContent = `${citizen.timeLeft}s`;
+            row.querySelector('.request-item-bar-fill').style.width =
+                `${(citizen.timeLeft / citizen.maxTime) * 100}%`;
         });
+        
+        Array.from(queueContainer.children).forEach(row => {
+            if (!live.has(row.id)) row.remove();
+        });
+    }
+    
+    createRequestRow(citizen, rowId) {
+        const row = document.createElement('div');
+        row.className = 'request-item';
+        row.id = rowId;
+        row.style.backgroundColor = citizen.request.color;
+        row.innerHTML = `
+            <div class="request-item-head">
+                <span><strong>${citizen.name}</strong></span>
+                <span class="request-item-time"></span>
+            </div>
+            <div class="request-item-type">${citizen.request.icon} ${citizen.request.type}</div>
+            <div class="request-item-bar">
+                <div class="request-item-bar-fill"></div>
+            </div>
+        `;
+        return row;
     }
     
     updateCityAppearance() {
@@ -475,16 +569,19 @@ class CityOfTinyPromises {
         document.getElementById('communityScore').textContent = this.communityScore;
         document.getElementById('requestsFulfilled').textContent = this.requestsFulfilled;
         document.getElementById('requestsIgnored').textContent = this.requestsIgnored;
+        document.getElementById('timeRemaining').textContent =
+            Math.max(0, ROUND_SECONDS - this.gameTime);
     }
     
     checkGameEnd() {
-        if (this.gameTime >= 60) {
+        if (this.gameTime >= ROUND_SECONDS) {
             this.endGame();
         }
     }
     
     endGame() {
         this.isGameOver = true;
+        this.stopGameLoop();
         this.audioManager.stopBackgroundMusic();
         this.audioManager.playGameOverSound();
         
@@ -525,9 +622,11 @@ class CityOfTinyPromises {
         this.gameTime = 0;
         this.isGameOver = false;
         
+        this.stopGameLoop();
         this.audioManager.stopBackgroundMusic();
         
         document.getElementById('streetContainer').innerHTML = '';
+        document.getElementById('activeRequests').innerHTML = '';
         document.getElementById('endGameModal').classList.add('hidden');
         document.getElementById('gameContainer').classList.add('hidden');
         document.getElementById('difficultyMenu').classList.remove('hidden');

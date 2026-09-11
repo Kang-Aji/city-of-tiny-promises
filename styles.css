@@ -4,6 +4,15 @@
     box-sizing: border-box;
 }
 
+/* Generic visibility helper. index.html marks #gameContainer and the end-game
+   modal with `hidden`, but the only rules that existed were scoped
+   (.modal.hidden, .nyc-skyline.hidden), so the game UI rendered behind the
+   difficulty modal on first paint. !important because the elements that use it
+   are targeted by id selectors that set `display` themselves. */
+.hidden {
+    display: none !important;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -317,7 +326,7 @@ body {
     left: 0;
     right: 0;
     z-index: 2;
-    height: 200px;
+    height: 280px;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(100, 100, 100, 0.2) 100%);
     border-radius: 0;
     padding: 10px;
@@ -448,6 +457,38 @@ body {
 .request-item.urgent {
     background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
     animation: slideIn 0.3s ease, pulse 1s infinite;
+}
+
+/* Queue row internals. These were inline styles written into innerHTML on every
+   tick; they live here now that rows are reused rather than rebuilt. */
+.request-item-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.request-item-time {
+    font-weight: bold;
+}
+
+.request-item-type {
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.request-item-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.request-item-bar-fill {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    transition: width 0.3s ease;
 }
 
 @keyframes slideIn {
@@ -616,6 +657,10 @@ body {
     position: absolute;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     z-index: 5;
+    /* Fixed box so spawn placement can clamp to the street and keep cards from
+       landing on top of each other. Must stay in sync with CARD_W / CARD_H. */
+    width: 88px;
+    height: 100px;
 }
 
 .citizen-card.bad-request {
