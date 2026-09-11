@@ -16,19 +16,19 @@ You cannot help everyone. Ignoring requests slowly changes how the city looks an
 
 **New York City (Easy)**
 - Classic urban experience with dark steel-gray skyscrapers
-- 8 positive request types
-- Straightforward gameplay focused on fulfilling requests
+- Every request is genuine; the only opponent is the clock
 - Responsive building colors based on community health
 
 **San Francisco (Hard)**
 - Distinctive tan/beige architecture with pyramid buildings
-- Mix of 8 positive and 5 negative "bad requests" (30% spawn rate)
-- Strategic decision-making: identify and avoid harmful requests
-- Deceptive requests like "BUY MY PRODUCT", "SPREAD RUMORS", "TAKE MY MONEY"
+- Roughly a quarter of arrivals are requests that only look like requests,
+  rising to about 40% by the end of the round
+- Deceptive requests are drawn in the same palette and the same chrome as
+  genuine ones. The tell is what is being asked for, not how it is drawn.
 
 ### Request Types
 
-**Positive Requests:**
+**Genuine Requests:**
 - WALK WITH ME (🚶) - Companionship
 - LISTEN (👂) - Emotional support
 - HELP MOVE BOXES (📦) - Physical help
@@ -38,25 +38,65 @@ You cannot help everyone. Ignoring requests slowly changes how the city looks an
 - COMFORT ME (🤗) - Emotional care
 - TEACH ME (📚) - Knowledge
 
-**Negative Requests (SF Only):**
-- BUY MY PRODUCT (💰) - Scam
-- SPREAD RUMORS (🗣️) - Gossip
-- IGNORE THEM (🚫) - Exclusion
-- TAKE MY MONEY (💸) - Theft
-- SKIP WORK (🏃) - Irresponsibility
+**Deceptive Requests (SF only):**
+- INVEST WITH ME (💰) - "Ground floor"
+- HEAR ABOUT THEM (🗣️) - "Neighborhood news"
+- KEEP THEM OUT (🚫) - "Community standards"
+- HOLD MY CASH (💸) - "Trust exercise"
+- COVER FOR ME (🏃) - "Just this once"
+- SIGN THIS (📋) - "Formality"
 
-### Systemic Design
+Helping one costs you. Letting one expire is the correct read, and scores.
 
-- **Community Score**: Ranges from 0-100, starts at 50
-- **Visual Feedback**: Buildings change appearance based on community health
-  - Score < 30: Dark, depressed buildings
-  - Score 30-70: Neutral appearance
-  - Score > 70: Bright, vibrant buildings
-- **Four Ending Scenarios**: Based on final community score
-  - 80+: Thriving community
-  - 60-79: Balanced community
-  - 40-59: Struggling community
-  - <40: Broken down community
+### Scoring
+
+Two numbers, doing two different jobs.
+
+**Score** is what you compete on, and is saved per city in `localStorage`:
+
+| Outcome | Points |
+| --- | --- |
+| Genuine request helped | +10, multiplied by the streak bonus |
+| Deception correctly let go | +5 |
+| Genuine request missed | −10 |
+| Deception fallen for | −15 |
+
+Consecutive correct calls build a streak worth up to ×2.
+
+**Community** (0–100) is the state of the city. It drives the buildings, the
+health meter and the ending. Gains into it suffer diminishing returns, so the
+last stretch of community trust is the expensive part, and consecutive misses
+compound: a city you have stopped showing up for gives up on you faster.
+
+If community reaches 0 the round ends early — the city stopped asking.
+
+### Difficulty Curve
+
+Spawn interval tightens from 2.6s to 1.1s and the street's capacity grows from
+5 citizens to 10 over the 60-second round, so pressure comes from the schedule
+rather than a flat rate.
+
+### Controls
+
+| Input | Action |
+| --- | --- |
+| Click, or Enter/Space on a focused citizen | Help that request |
+| Tab, or arrow keys | Move between citizens |
+| 1–9 | Act on that row of the queue, sorted most urgent first |
+| P or Esc | Pause |
+| M | Mute |
+| R | Restart |
+
+The game is fully playable without a mouse.
+
+### Accessibility
+
+- Citizens are real buttons, focusable and operable from the keyboard
+- `aria-live` status region announces round, score and outcome changes
+- Visible focus rings on every interactive element
+- `prefers-reduced-motion` disables the pulse, float and particle animations;
+  the countdown bars carry the same information
+- The community meter is labelled for screen readers
 
 ### Audio System
 
@@ -64,29 +104,31 @@ You cannot help everyone. Ignoring requests slowly changes how the city looks an
 - **Sound Effects**:
   - Fulfillment: Ascending three-note chime
   - Ignore: Descending three-note tone
-  - Bad Request: Warning buzzer
+  - Deception fallen for: Warning buzzer
+  - Deception avoided: Short rising two-note cue
   - Game Over: Descending chord sequence
 - **Background Music**: Difficulty-specific ambient tones
-- **Controls**: Mute button and volume slider in header
+- **Controls**: Mute toggle and volume slider in the control bar (or M)
 
 ### Visual Design
 
+- **Attract screen**: States the premise and the controls before play starts
 - **Modern UI**: Glassmorphism effects, gradient backgrounds
 - **Animated Citizens**: Color-coded request cards with names and descriptions
 - **Particle Effects**: Heart particles for fulfillment, broken hearts for ignored requests
 - **Full-Screen Cityscape**: NYC or SF skyline fills entire game area
-- **Responsive Design**: Works on desktop and mobile devices
+- **Responsive Design**: Works on desktop and mobile, sized in `svh` so a
+  collapsing mobile URL bar cannot push the control bar off-screen
 
 ## Gameplay
 
-1. Choose a difficulty level (NYC or San Francisco)
+1. Choose a city
 2. Citizens appear on the street with requests
-3. Click citizens to fulfill their requests before time runs out
-4. Each request has a timer (8-12 seconds depending on urgency)
-5. Fulfilling requests increases community score
-6. Ignoring requests decreases community score
-7. Game lasts 60 seconds
-8. Final community score determines ending scenario
+3. Help them before their timer runs out — by clicking, or from the keyboard
+4. In San Francisco, read the request before you help: some are not what they
+   look like, and letting those expire is the right call
+5. The round lasts 60 seconds, or ends early if community reaches 0
+6. Your final community score determines the ending
 
 ## Technical Stack
 
@@ -187,12 +229,9 @@ The game distills complex civic themes into simple mechanics:
 
 ## Future Enhancements
 
-- Persistent save system (localStorage)
 - Leaderboard system
 - Additional difficulty levels
 - More request types and citizen variety
-- Accessibility improvements (ARIA labels, keyboard controls)
-- Mobile touch optimizations
 
 ## License
 
@@ -204,4 +243,4 @@ Designed and developed as a semantic systemic design game exploring civic respon
 
 ---
 
-**Play the game**: [City of Tiny Promises on Netlify](https://your-netlify-domain.netlify.app)
+**Play the game**: deploy with the steps above, then drop your Netlify URL here.

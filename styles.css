@@ -1,95 +1,306 @@
+/* City of Tiny Promises
+ *
+ * Layout is a full-height flex column: header, playfield, control bar. The
+ * playfield is the only part that flexes, so the bar is always reachable and
+ * the street never scrolls out from under a click.
+ */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* Generic visibility helper. index.html marks #gameContainer and the end-game
-   modal with `hidden`, but the only rules that existed were scoped
-   (.modal.hidden, .nyc-skyline.hidden), so the game UI rendered behind the
-   difficulty modal on first paint. !important because the elements that use it
-   are targeted by id selectors that set `display` themselves. */
+:root {
+    --ink: #2b2d42;
+    --muted: #6b7089;
+    --panel: rgba(255, 255, 255, 0.95);
+    --brand: #667eea;
+    --brand-deep: #764ba2;
+    --brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --good: #2f9e5e;
+    --warn: #e8a020;
+    --bad: #d64545;
+    --radius: 15px;
+    --focus: #1b3bff;
+}
+
+/* Generic visibility helper. index.html marks several page-lifetime elements
+   with `hidden`; the only rules that existed were scoped (.modal.hidden,
+   .nyc-skyline.hidden), so the game UI painted behind the difficulty modal on
+   first load. !important because those elements are also targeted by id
+   selectors that set `display` themselves. */
 .hidden {
     display: none !important;
 }
 
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
+    background: var(--brand-gradient);
+    color: var(--ink);
+    /* Small viewport unit: on mobile the URL bar collapses and 100vh overflows,
+       which pushes the control bar off-screen mid-round. */
+    min-height: 100svh;
     overflow-x: hidden;
 }
+
+.hint {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Every interactive element in the game is keyboard-reachable, so every one of
+   them has to show where focus is. */
+:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+}
+
+/* ---------- attract screen ---------- */
+
+.screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(circle at 50% 30%, #7f74d8 0%, #4b3b82 60%, #2b2348 100%);
+    z-index: 900;
+}
+
+.attract-inner {
+    max-width: 560px;
+    text-align: center;
+    color: white;
+}
+
+.attract-title {
+    font-size: clamp(2rem, 7vw, 3.4rem);
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+    margin-bottom: 18px;
+    text-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.attract-premise {
+    font-size: clamp(1rem, 2.6vw, 1.25rem);
+    line-height: 1.6;
+    opacity: 0.9;
+    margin-bottom: 32px;
+}
+
+.start-btn {
+    background: white;
+    color: var(--brand-deep);
+    border: none;
+    border-radius: 999px;
+    padding: 16px 38px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: breathe 2.4s ease-in-out infinite;
+}
+
+.start-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.38);
+}
+
+.attract-inner .hint {
+    display: block;
+    margin-top: 22px;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* Pulses the glow rather than the box. Scaling the button moves the click
+   target out from under the pointer, and never lets it settle. */
+@keyframes breathe {
+    0%, 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 0 0 0 12px rgba(255, 255, 255, 0.12); }
+}
+
+/* ---------- shell ---------- */
 
 #gameContainer {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 16px;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 #gameHeader {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 20px;
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 14px 18px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     backdrop-filter: blur(10px);
-}
-
-.header-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+    flex: 0 0 auto;
 }
 
 #gameHeader h1 {
-    color: #333;
+    font-size: 1.4em;
     text-align: center;
-    flex: 1;
-    font-size: 2.5em;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-    margin: 0;
+    margin-bottom: 10px;
 }
 
-.sound-controls {
+#stats {
     display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 10px;
-    align-items: center;
 }
 
-.sound-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.stat {
+    background: var(--brand-gradient);
     color: white;
-    border: none;
-    border-radius: 50%;
-    width: 45px;
-    height: 45px;
-    font-size: 24px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    padding: 7px 16px;
+    border-radius: 25px;
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.stat-label {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.8;
+}
+
+.stat.hot {
+    background: linear-gradient(135deg, #f7971e 0%, #ff4b2b 100%);
+}
+
+/* Community health as a bar rather than a bare number: the buildings already
+   react to it, and a meter makes the threshold you are drifting toward legible
+   before the city changes. */
+#communityMeter {
+    margin-top: 10px;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+#communityMeterFill {
+    height: 100%;
+    width: 50%;
+    background: var(--warn);
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+#communityMeter.low #communityMeterFill { background: var(--bad); }
+#communityMeter.high #communityMeterFill { background: var(--good); }
+
+#gameMain {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 320px;
+}
+
+/* ---------- control bar ---------- */
+
+#gameBar {
+    display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    flex: 0 0 auto;
 }
 
-.sound-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+.toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid rgba(102, 126, 234, 0.4);
+    border-radius: 999px;
+    background: white;
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    /* A wrapped "Sound off" doubles the bar's height and shoves the playfield
+       up mid-round. The pill is not the item that should give ground. */
+    white-space: nowrap;
+    flex: 0 0 auto;
+    cursor: pointer;
 }
 
-.sound-btn.muted {
-    background: linear-gradient(135deg, #999999 0%, #666666 100%);
+.toggle:hover {
+    border-color: var(--brand-deep);
+}
+
+.toggle-icon {
+    color: var(--brand-deep);
+    line-height: 1;
+}
+
+/* Muted state follows aria-pressed, so the styling and the screen reader read
+   from the same source of truth. */
+.toggle[aria-pressed="false"] {
+    color: var(--muted);
+}
+
+.toggle[aria-pressed="false"] .toggle-icon {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
+/* The hint is the one bar item that can afford to lose room, so it is the one
+   allowed to. Flex items refuse to shrink past their longest word by default. */
+#gameBar .hint {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.best-pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(102, 126, 234, 0.12);
+    color: var(--brand-deep);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .volume-slider {
-    width: 120px;
+    width: 100px;
     height: 6px;
     border-radius: 3px;
     background: #ddd;
     outline: none;
     -webkit-appearance: none;
     appearance: none;
+    flex: 0 0 auto;
 }
 
 .volume-slider::-webkit-slider-thumb {
@@ -98,7 +309,7 @@ body {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -107,69 +318,27 @@ body {
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--brand-gradient);
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     border: none;
 }
 
-#stats {
-    display: flex;
-    justify-content: space-around;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.stat {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 25px;
-    font-weight: bold;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    transition: transform 0.3s ease;
-}
-
-.stat:hover {
-    transform: translateY(-2px);
-}
-
-.stat-label {
-    font-size: 0.9em;
-    opacity: 0.9;
-}
-
-#gameMain {
-    display: grid;
-    grid-template-columns: 1fr 280px;
-    gap: 0;
-    align-items: stretch;
-    height: calc(100vh - 140px);
-}
+/* ---------- city ---------- */
 
 #cityStreet {
     background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 50%, #D3D3D3 100%);
-    border-radius: 0;
-    padding: 0;
-    min-height: 100%;
+    border-radius: var(--radius);
     position: relative;
     overflow: hidden;
-    box-shadow: none;
-    display: flex;
-    flex-direction: column;
+    min-height: 320px;
 }
 
-#skyline {
+#skyline,
+.sf-skyline {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     z-index: 1;
-    display: flex;
-    align-items: flex-end;
-    width: 100%;
-    height: 100%;
 }
 
 .skyscraper {
@@ -184,25 +353,10 @@ body {
 .skyscraper::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 30px,
-            rgba(255, 255, 255, 0.05) 30px,
-            rgba(255, 255, 255, 0.05) 60px
-        ),
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 25px,
-            rgba(255, 255, 255, 0.08) 25px,
-            rgba(255, 255, 255, 0.08) 50px
-        );
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 30px, rgba(255, 255, 255, 0.05) 30px, rgba(255, 255, 255, 0.05) 60px),
+        repeating-linear-gradient(90deg, transparent, transparent 25px, rgba(255, 255, 255, 0.08) 25px, rgba(255, 255, 255, 0.08) 50px);
     pointer-events: none;
 }
 
@@ -213,14 +367,7 @@ body {
     left: 0;
     right: 0;
     height: 40%;
-    background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 8px,
-        rgba(255, 200, 0, 0.1) 8px,
-        rgba(255, 200, 0, 0.1) 16px
-    );
-    background-size: 100% 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255, 200, 0, 0.1) 8px, rgba(255, 200, 0, 0.1) 16px);
     pointer-events: none;
 }
 
@@ -238,31 +385,6 @@ body {
     box-shadow: inset -2px 0 5px rgba(0, 0, 0, 0.3), 0 0 30px rgba(100, 150, 200, 0.4);
 }
 
-.nyc-skyline {
-    display: block;
-}
-
-.nyc-skyline.hidden {
-    display: none;
-}
-
-.sf-skyline {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1;
-    display: flex;
-    align-items: flex-end;
-    width: 100%;
-    height: 100%;
-}
-
-.sf-skyline.hidden {
-    display: none;
-}
-
 .sf-building {
     position: absolute;
     bottom: 0;
@@ -275,25 +397,10 @@ body {
 .sf-building::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 25px,
-            rgba(139, 115, 85, 0.1) 25px,
-            rgba(139, 115, 85, 0.1) 50px
-        ),
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent 20px,
-            rgba(139, 115, 85, 0.15) 20px,
-            rgba(139, 115, 85, 0.15) 40px
-        );
+    inset: 0;
+    background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(139, 115, 85, 0.1) 25px, rgba(139, 115, 85, 0.1) 50px),
+        repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(139, 115, 85, 0.15) 20px, rgba(139, 115, 85, 0.15) 40px);
     pointer-events: none;
 }
 
@@ -302,9 +409,7 @@ body {
     background: linear-gradient(135deg, #D4A574 0%, #C19A6B 50%, #A0826D 100%);
 }
 
-.sf-building.pyramid::before {
-    display: none;
-}
+.sf-building.pyramid::before { display: none; }
 
 .sf-building.tall {
     background: linear-gradient(90deg, #A0826D 0%, #8B7355 50%, #A0826D 100%);
@@ -326,9 +431,10 @@ body {
     left: 0;
     right: 0;
     z-index: 2;
+    /* Tall enough for a whole card plus its speech bubble. At 200px anything
+       spawned low was clipped by #cityStreet's overflow:hidden. */
     height: 280px;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(100, 100, 100, 0.2) 100%);
-    border-radius: 0;
     padding: 10px;
 }
 
@@ -341,415 +447,6 @@ body {
     z-index: 1;
     background: linear-gradient(180deg, #A9A9A9 0%, #808080 100%);
     border-top: 3px solid #FFD700;
-}
-
-.citizen {
-    position: absolute;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    animation: citizenAppear 0.5s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.citizen:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-}
-
-.citizen.urgent {
-    animation: pulse 1s infinite;
-}
-
-.citizen.fading {
-    opacity: 0.3;
-    transform: scale(0.8);
-}
-
-@keyframes citizenAppear {
-    from {
-        opacity: 0;
-        transform: scale(0);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes pulse {
-    0%, 100% {
-        box-shadow: 0 4px 15px rgba(255, 0, 0, 0.4);
-    }
-    50% {
-        box-shadow: 0 4px 25px rgba(255, 0, 0, 0.8);
-    }
-}
-
-.request-bubble {
-    position: absolute;
-    top: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: white;
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 12px;
-    white-space: nowrap;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    z-index: 3;
-}
-
-.request-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid white;
-}
-
-#requestQueue {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-#requestQueue h3 {
-    color: #333;
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-#activeRequests {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    max-height: 350px;
-    overflow-y: auto;
-}
-
-.request-item {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-    padding: 10px;
-    border-radius: 10px;
-    font-size: 14px;
-    animation: slideIn 0.3s ease;
-    transition: all 0.3s ease;
-}
-
-.request-item:hover {
-    transform: translateX(-5px);
-}
-
-.request-item.urgent {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
-    animation: slideIn 0.3s ease, pulse 1s infinite;
-}
-
-/* Queue row internals. These were inline styles written into innerHTML on every
-   tick; they live here now that rows are reused rather than rebuilt. */
-.request-item-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
-}
-
-.request-item-time {
-    font-weight: bold;
-}
-
-.request-item-type {
-    font-size: 12px;
-    margin-bottom: 5px;
-}
-
-.request-item-bar {
-    width: 100%;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.request-item-bar-fill {
-    height: 100%;
-    background: rgba(255, 255, 255, 0.8);
-    transition: width 0.3s ease;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
-
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal.hidden {
-    display: none;
-}
-
-.difficulty-modal {
-    max-width: 700px;
-    text-align: center;
-}
-
-.difficulty-modal h2 {
-    font-size: 2.5em;
-    margin-bottom: 10px;
-    color: #333;
-}
-
-.difficulty-modal p {
-    color: #666;
-    font-size: 1.1em;
-    margin-bottom: 30px;
-}
-
-.difficulty-buttons {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.difficulty-btn {
-    background: white;
-    border: 3px solid #667eea;
-    border-radius: 15px;
-    padding: 30px;
-    width: 280px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 16px;
-}
-
-.difficulty-btn:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.nyc-btn {
-    border-color: #2c3e50;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-.nyc-btn:hover {
-    background: linear-gradient(135deg, #e8eef5 0%, #b8d4e0 100%);
-}
-
-.sf-btn {
-    border-color: #ff6b6b;
-    background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
-}
-
-.sf-btn:hover {
-    background: linear-gradient(135deg, #ffebeb 0%, #ffd4d4 100%);
-}
-
-.difficulty-title {
-    font-weight: bold;
-    font-size: 1.3em;
-    margin-bottom: 8px;
-    color: #333;
-}
-
-.difficulty-desc {
-    font-size: 0.9em;
-    color: #666;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 20px;
-    padding: 30px;
-    max-width: 600px;
-    text-align: center;
-    animation: modalAppear 0.5s ease;
-}
-
-@keyframes modalAppear {
-    from {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.modal-content h2 {
-    color: #333;
-    margin-bottom: 20px;
-    font-size: 2em;
-}
-
-#endGameScene {
-    margin: 20px 0;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 15px;
-    color: white;
-    min-height: 150px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2em;
-}
-
-#finalStats {
-    margin: 20px 0;
-    text-align: left;
-}
-
-#restartBtn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    padding: 15px 30px;
-    border-radius: 25px;
-    font-size: 16px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 20px;
-}
-
-#restartBtn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-}
-
-.citizen-card {
-    background: white;
-    border-radius: 12px;
-    padding: 8px;
-    position: absolute;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 5;
-    /* Fixed box so spawn placement can clamp to the street and keep cards from
-       landing on top of each other. Must stay in sync with CARD_W / CARD_H. */
-    width: 88px;
-    height: 100px;
-}
-
-.citizen-card.bad-request {
-    animation: warningPulse 0.8s ease-in-out infinite;
-}
-
-@keyframes warningPulse {
-    0%, 100% {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    }
-    50% {
-        box-shadow: 0 2px 15px rgba(255, 68, 68, 0.5);
-    }
-}
-
-.citizen-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    margin: 0 auto;
-    margin-bottom: 4px;
-}
-
-.citizen-name {
-    font-size: 11px;
-    font-weight: bold;
-    text-align: center;
-    color: #333;
-    margin-bottom: 2px;
-}
-
-.citizen-mood {
-    font-size: 10px;
-    text-align: center;
-    color: #666;
-}
-
-.request-type-icon {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-right: 5px;
-    vertical-align: middle;
-}
-
-.particle {
-    position: absolute;
-    pointer-events: none;
-}
-
-.particle.heart {
-    font-size: 20px;
-    animation: floatUp 1s ease-out forwards;
-}
-
-.particle.star {
-    font-size: 18px;
-    animation: floatUp 1s ease-out forwards;
-}
-
-.particle.sad {
-    font-size: 18px;
-    animation: floatDown 1s ease-out forwards;
-}
-
-@keyframes floatUp {
-    0% {
-        opacity: 1;
-        transform: translateY(0) translateX(0);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(-60px) translateX(20px);
-    }
-}
-
-@keyframes floatDown {
-    0% {
-        opacity: 1;
-        transform: translateY(0) translateX(0);
-    }
-    100% {
-        opacity: 0;
-        transform: translateY(40px) translateX(-20px);
-    }
 }
 
 .street-element {
@@ -765,7 +462,6 @@ body {
     background: linear-gradient(180deg, #A0522D 0%, #654321 100%);
     border-radius: 3px;
     opacity: 0.8;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
 .tree {
@@ -774,7 +470,6 @@ body {
     background: linear-gradient(180deg, #32CD32 0%, #228B22 100%);
     border-radius: 50% 50% 0 0;
     opacity: 0.75;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     transition: all 0.5s ease;
 }
 
@@ -797,31 +492,133 @@ body {
     box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
 }
 
+/* ---------- citizens ---------- */
+
+/* A real <button>. This is the entire interaction surface of the game, and as
+   a div with a click handler it was unreachable without a mouse. */
+.citizen-card {
+    position: absolute;
+    /* Fixed box so spawn placement can clamp to the street and keep cards from
+       landing on top of each other. Must stay in sync with CARD_W / CARD_H. */
+    width: 88px;
+    height: 100px;
+    padding: 8px;
+    border: none;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font: inherit;
+    color: var(--ink);
+    cursor: pointer;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    animation: citizenAppear 0.35s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.citizen-card:hover,
+.citizen-card:focus-visible {
+    transform: scale(1.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    z-index: 6;
+}
+
+.citizen-card.urgent {
+    animation: citizenAppear 0.35s ease, pulse 1s infinite;
+}
+
+.citizen-avatar {
+    font-size: 26px;
+    line-height: 1.1;
+}
+
+.citizen-name {
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.citizen-mood {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.15;
+}
+
 .request-badge {
     position: absolute;
-    top: -15px;
-    right: -15px;
-    background: #ff6b6b;
+    top: -12px;
+    right: -12px;
+    background: var(--brand-deep);
     color: white;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    font-weight: bold;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    animation: badgePulse 0.6s ease-in-out infinite;
 }
 
-@keyframes badgePulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.15);
-    }
+.request-bubble {
+    position: absolute;
+    top: -34px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    color: var(--ink);
+    padding: 4px 9px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 3;
+}
+
+.request-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid white;
+}
+
+/* Per-card countdown, so urgency is readable on the street without checking
+   the side panel. */
+.citizen-timer {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 6px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.citizen-timer i {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+@keyframes citizenAppear {
+    from { opacity: 0; transform: scale(0.4); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+    0%, 100% { box-shadow: 0 4px 15px rgba(214, 69, 69, 0.4); }
+    50% { box-shadow: 0 4px 25px rgba(214, 69, 69, 0.85); }
 }
 
 .fulfilled-effect {
@@ -829,50 +626,373 @@ body {
 }
 
 @keyframes fulfillmentBurst {
-    0% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.3);
-    }
-    100% {
-        transform: scale(0);
-        opacity: 0;
-    }
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(0); opacity: 0; }
 }
 
 .ignored-effect {
-    animation: sadDisappear 0.8s ease-out forwards;
+    animation: sadDisappear 0.6s ease-out forwards;
 }
 
 @keyframes sadDisappear {
-    0% {
-        transform: scale(1) rotateZ(0deg);
-        opacity: 1;
-    }
-    100% {
-        transform: scale(0.5) rotateZ(-10deg);
-        opacity: 0;
-    }
+    0% { transform: scale(1) rotateZ(0deg); opacity: 1; }
+    100% { transform: scale(0.5) rotateZ(-10deg); opacity: 0; }
 }
 
-@media (max-width: 768px) {
+.particle {
+    position: absolute;
+    pointer-events: none;
+    font-size: 18px;
+    z-index: 7;
+}
+
+.particle.heart { animation: floatUp 1s ease-out forwards; }
+.particle.sad { animation: floatDown 1s ease-out forwards; }
+
+@keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-60px); }
+}
+
+@keyframes floatDown {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(40px); }
+}
+
+/* ---------- pause ---------- */
+
+#pauseOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(20, 20, 40, 0.6);
+    backdrop-filter: blur(3px);
+    cursor: pointer;
+}
+
+.pause-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 20px 34px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.pause-card strong {
+    font-size: 1.4em;
+}
+
+/* ---------- request queue ---------- */
+
+#requestQueue {
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+#requestQueue h3 {
+    margin-bottom: 12px;
+    text-align: center;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+#activeRequests {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.request-item {
+    color: var(--ink);
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    animation: slideIn 0.3s ease;
+}
+
+.request-item.urgent {
+    box-shadow: 0 0 0 2px var(--bad);
+}
+
+.request-item-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+/* The digit that acts on this row, matching the "1-9 queue" hint in the bar. */
+.request-item-key {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.35);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.request-item-name { flex: 1 1 auto; }
+
+.request-item-time {
+    font-weight: bold;
+    font-variant-numeric: tabular-nums;
+}
+
+.request-item-type {
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.request-item-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.45);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.request-item-bar-fill {
+    height: 100%;
+    background: rgba(0, 0, 0, 0.45);
+    transition: width 0.12s linear;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* ---------- modals ---------- */
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+}
+
+.modal.hidden { display: none; }
+
+.modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 28px;
+    max-width: 640px;
+    width: 100%;
+    max-height: 90svh;
+    overflow-y: auto;
+    text-align: center;
+    animation: modalAppear 0.4s ease;
+}
+
+@keyframes modalAppear {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.modal-content h2 {
+    margin-bottom: 8px;
+    font-size: 1.8em;
+}
+
+.difficulty-modal p {
+    color: var(--muted);
+    margin-bottom: 24px;
+}
+
+.difficulty-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.difficulty-btn {
+    background: white;
+    border: 3px solid var(--brand);
+    border-radius: var(--radius);
+    padding: 22px;
+    width: 260px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--ink);
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.difficulty-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.nyc-btn {
+    border-color: #2c3e50;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.sf-btn {
+    border-color: #c0793a;
+    background: linear-gradient(135deg, #fdf6ec 0%, #f0dcc0 100%);
+}
+
+.difficulty-title {
+    font-weight: bold;
+    font-size: 1.25em;
+    margin-bottom: 4px;
+}
+
+.difficulty-desc {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+
+.difficulty-detail {
+    font-size: 0.85em;
+    line-height: 1.45;
+    color: var(--ink);
+    margin-bottom: 12px;
+}
+
+.difficulty-best {
+    font-size: 0.78em;
+    font-weight: 700;
+    color: var(--brand-deep);
+    font-variant-numeric: tabular-nums;
+}
+
+#newBestBanner {
+    display: inline-block;
+    margin-bottom: 14px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+    color: #4a3200;
+    font-weight: 700;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+#endGameScene {
+    margin: 16px 0;
+    padding: 20px;
+    background: var(--brand-gradient);
+    border-radius: var(--radius);
+    color: white;
+    line-height: 1.6;
+}
+
+.final-stats-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    text-align: left;
+}
+
+.final-stats-list > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 12px;
+    background: #f4f5fa;
+    border-radius: 8px;
+}
+
+.final-stats-list dt {
+    color: var(--muted);
+    font-size: 0.88em;
+}
+
+.final-stats-list dd {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+#restartBtn {
+    background: var(--brand-gradient);
+    color: white;
+    border: none;
+    padding: 14px 30px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-top: 20px;
+}
+
+#restartBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- responsive ---------- */
+
+@media (max-width: 820px) {
     #gameMain {
         grid-template-columns: 1fr;
     }
-    
-    #stats {
-        flex-direction: column;
-        align-items: center;
+
+    #requestQueue {
+        max-height: 190px;
     }
-    
+
+    #activeRequests {
+        flex-direction: row;
+        overflow-x: auto;
+    }
+
+    .request-item {
+        min-width: 150px;
+    }
+
     .stat {
-        width: 100%;
-        text-align: center;
+        padding: 6px 12px;
+        font-size: 0.9em;
     }
-    
-    #gameHeader h1 {
-        font-size: 1.8em;
+
+    #gameBar .hint {
+        order: 3;
+        flex-basis: 100%;
+    }
+}
+
+/* Motion is decorative here; the timer bars and the countdown carry the same
+   information without it. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
     }
 }

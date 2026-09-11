@@ -7,18 +7,36 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div id="difficultyMenu" class="modal">
+    <!-- Attract screen. Nothing about the premise or the controls was stated
+         anywhere before the player was dropped into a running round. -->
+    <div id="attractScreen" class="screen">
+        <div class="attract-inner">
+            <h1 class="attract-title">City of Tiny Promises</h1>
+            <p class="attract-premise">
+                You cannot help everyone.<br>
+                The city becomes whatever you had time for.
+            </p>
+            <button id="startBtn" class="start-btn" type="button">Click to start</button>
+            <p class="hint">click or space to help &middot; tab or arrows to move &middot; 1&ndash;9 for the queue &middot; M mute &middot; R restart</p>
+        </div>
+    </div>
+
+    <div id="difficultyMenu" class="modal hidden">
         <div class="modal-content difficulty-modal">
             <h2>Choose Your City</h2>
-            <p>Select a difficulty level and aesthetic</p>
+            <p>Every request costs time you could have spent elsewhere.</p>
             <div class="difficulty-buttons">
-                <button id="nycBtn" class="difficulty-btn nyc-btn">
+                <button id="nycBtn" class="difficulty-btn nyc-btn" type="button">
                     <div class="difficulty-title">New York City</div>
-                    <div class="difficulty-desc">Easy - Classic urban experience</div>
+                    <div class="difficulty-desc">Easy</div>
+                    <div class="difficulty-detail">Every request is genuine. The only enemy is the clock.</div>
+                    <div class="difficulty-best">Best: <span id="bestNyc">&ndash;</span></div>
                 </button>
-                <button id="sfBtn" class="difficulty-btn sf-btn">
+                <button id="sfBtn" class="difficulty-btn sf-btn" type="button">
                     <div class="difficulty-title">San Francisco</div>
-                    <div class="difficulty-desc">Hard - Includes deceptive requests</div>
+                    <div class="difficulty-desc">Hard</div>
+                    <div class="difficulty-detail">Some requests only look like requests. Read before you help.</div>
+                    <div class="difficulty-best">Best: <span id="bestSf">&ndash;</span></div>
                 </button>
             </div>
         </div>
@@ -26,30 +44,27 @@
 
     <div id="gameContainer" class="hidden">
         <header id="gameHeader">
-            <div class="header-top">
-                <h1>City of Tiny Promises</h1>
-                <div class="sound-controls">
-                    <button id="soundToggle" class="sound-btn" title="Toggle sound">🔊</button>
-                    <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="70" title="Volume">
-                </div>
-            </div>
+            <h1>City of Tiny Promises</h1>
             <div id="stats">
                 <div class="stat">
-                    <span class="stat-label">Time Left:</span>
-                    <span id="timeRemaining">60</span>s
+                    <span class="stat-label">Time</span>
+                    <span id="timeRemaining">60</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-label">Community Score:</span>
+                    <span class="stat-label">Score</span>
+                    <span id="score">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Community</span>
                     <span id="communityScore">50</span>
                 </div>
-                <div class="stat">
-                    <span class="stat-label">Requests Fulfilled:</span>
-                    <span id="requestsFulfilled">0</span>
+                <div class="stat" id="streakStat">
+                    <span class="stat-label">Streak</span>
+                    <span id="streak">0</span>
                 </div>
-                <div class="stat">
-                    <span class="stat-label">Requests Ignored:</span>
-                    <span id="requestsIgnored">0</span>
-                </div>
+            </div>
+            <div id="communityMeter" role="img" aria-label="Community health">
+                <div id="communityMeterFill"></div>
             </div>
         </header>
 
@@ -99,6 +114,12 @@
                     <div class="street-element lamp" style="left: 70%;"></div>
                     <div class="street-element bench" style="left: 85%;"></div>
                 </div>
+                <div id="pauseOverlay" class="hidden">
+                    <div class="pause-card">
+                        <strong>Paused</strong>
+                        <span class="hint">press P or click to resume</span>
+                    </div>
+                </div>
             </div>
 
             <div id="requestQueue">
@@ -109,15 +130,29 @@
             </div>
         </main>
 
+        <footer id="gameBar">
+            <button id="soundToggle" class="toggle" type="button" aria-pressed="true">
+                <span class="toggle-icon" aria-hidden="true">&#9834;</span>
+                <span class="toggle-text">Sound on</span>
+            </button>
+            <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" value="70" aria-label="Volume">
+            <span class="hint">click or space to help &middot; 1&ndash;9 queue &middot; P pause &middot; M mute &middot; R restart</span>
+            <span class="best-pill">Best <span id="bestScore">0</span></span>
+        </footer>
+
         <div id="endGameModal" class="modal hidden">
             <div class="modal-content">
-                <h2>Your Community</h2>
+                <h2 id="endGameTitle">Your Community</h2>
+                <div id="newBestBanner" class="hidden">New best score</div>
                 <div id="endGameScene"></div>
                 <div id="finalStats"></div>
-                <button id="restartBtn">Start New Community</button>
+                <button id="restartBtn" type="button">Start New Community</button>
             </div>
         </div>
     </div>
+
+    <!-- Score and outcome changes are colour- and animation-only otherwise. -->
+    <div id="srStatus" class="sr-only" role="status" aria-live="polite"></div>
 
     <script src="game.js"></script>
 </body>
